@@ -84,13 +84,19 @@ patch_functions <- function(clean = TRUE) {
 
   # Patch
   code[93] <- "    X <- Z <- mvnfast::rmvn(n = n, mu = rep(0, nvar), sigma = ICOR)"
+  code_block <- c(
+    "    if (any(eigen(ICOR)$values < 0)) {",
+    "        stop('ICOR has a negative eigenvalue')",
+    "    }"
+  )
+  code <- c(code[1:92], code_block, code[93:99])
   code <- c(
     "VMpatched <-", code
   )
   message("* patched function VMpatched(): created")
   check_hash(
     code,
-    "556ba327f30f8ab02662ef39fb6f7225",
+    "958d7a8108d513d0cece7b2039ace12e",
     "* patched function VMpatched()"
   )
 
