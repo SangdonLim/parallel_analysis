@@ -39,8 +39,12 @@ simulate_sample <- function(arg_n_obs, arg_n_factors, arg_r_factors, arg_lambda,
   }
 
   population_cor_base <- matrix_lambda %*% phi %*% t(matrix_lambda)
-  population_cor <- population_cor_base
 
+  if (arg_error == 0) {
+    population_cor <- population_cor_base
+    ev_major <- eig(population_cor_base)[arg_n_factors]
+    ev_minor <- 0
+  }
   if (arg_error > 0) {
     matrix_lambda_minor <- matrix(
       runif(arg_n_items * arg_n_factors * 3, -1, 1),
@@ -49,6 +53,12 @@ simulate_sample <- function(arg_n_obs, arg_n_factors, arg_r_factors, arg_lambda,
     population_cor_minor <- matrix_lambda_minor %*% t(matrix_lambda_minor)
     weight_minor  <- arg_error / arg_n_factors
     population_cor <- population_cor_base + (population_cor_minor * weight_minor)
+    ev_major <- eig(population_cor_base)[arg_n_factors]
+    ev_minor <- eig(population_cor_minor * weight_minor)[1]
+  }
+
+  if (ev_major < ev_minor) {
+    stop("1st eigenvalue of minor matrix is larger than kth eigenvalue of major matrix")
   }
 
   diag(population_cor) <- 1
