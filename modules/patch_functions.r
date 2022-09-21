@@ -292,6 +292,117 @@ patch_functions <- function(clean = TRUE) {
   }
   message("* load complete")
 
+  # Patch DA.MRFA::mrfa() ------------------------------------------------------
+
+  cat(cli::rule(left = "Patching DA.MRFA::mrfa()"), fill = TRUE)
+
+  # Load
+  f <- eval(parse(text = "DA.MRFA::mrfa"))
+  code <- capture.output(f)
+  code <- code[1:100]
+  check_hash(
+    code,
+    "d98cc118a491ba128c1deff240518cfe",
+    "* origin function DA.MRFA::mrfa()"
+  )
+
+  # Patch
+  code[56] <- "            gam <- MRFASpatched(SIGMA, dimensionality, random, conv1, "
+  code <- c(
+    "MRFApatched <-", code
+  )
+  message("* patched function MRFApatched(): created")
+  check_hash(
+    code,
+    "0cef340f6748b9612300710238cc85d8",
+    "* patched function MRFApatched()"
+  )
+
+  # Source
+  writeLines(code, "MRFApatched.r")
+  source("MRFApatched.r")
+  if (clean) {
+    o <- remove_file_safely("MRFApatched.r")
+  }
+  message("* patch complete")
+
+  # Patch DA.MRFA::mrfa_s() ----------------------------------------------------
+
+  cat(cli::rule(left = "Patching DA.MRFA::mrfa_s()"), fill = TRUE)
+
+  # Load
+  f <- eval(parse(text = "DA.MRFA::mrfa_s"))
+  code <- capture.output(f)
+  code <- code[1:81]
+  check_hash(
+    code,
+    "617534d9ff729b35a0b4df03c5ff5ecd",
+    "* origin function DA.MRFA::mrfa_s()"
+  )
+
+  # Patch
+  code[48] <- "            resultat <- GLBpatched(Sigma1, conv2, T)"
+  code <- c(
+    "MRFASpatched <-", code
+  )
+  message("* patched function MRFASpatched(): created")
+  check_hash(
+    code,
+    "be3fb0cde0fc9c429648f374c40cd234",
+    "* patched function MRFASpatched()"
+  )
+
+  # Source
+  writeLines(code, "MRFASpatched.r")
+  source("MRFASpatched.r")
+  if (clean) {
+    o <- remove_file_safely("MRFASpatched.r")
+  }
+  message("* patch complete")
+
+  # Patch DA.MRFA::GreaterLowerBound() -----------------------------------------
+
+  cat(cli::rule(left = "Patching DA.MRFA::GreaterLowerBound()"), fill = TRUE)
+
+  # Load
+  f <- eval(parse(text = "DA.MRFA::GreaterLowerBound"))
+  code <- capture.output(f)
+  code <- code[1:115]
+  check_hash(
+    code,
+    "0caeab30e8ef207ec1acad5efa7ba1b0",
+    "* origin function DA.MRFA::GreaterLowerBound()"
+  )
+
+  # Patch
+  code_block <- c(
+    "        if (iter >= 100000) {",
+    "            stop('iteration limit reached')",
+    "        }"
+  )
+  code <- c(
+    code[1:43],
+    code_block,
+    code[44:115]
+  )
+  code <- c(
+    "GLBpatched <-", code
+  )
+  message("* patched function GLBpatched(): created")
+  check_hash(
+    code,
+    "df72707328da11e076dc218076684ba7",
+    "* patched function GLBpatched()"
+  )
+
+  # Source
+  writeLines(code, "GLBpatched.r")
+  source("GLBpatched.r")
+  if (clean) {
+    o <- remove_file_safely("GLBpatched.r")
+  }
+  message("* patch complete")
+
   # Finalize -------------------------------------------------------------------
 
   cat(cli::rule(left = "OK"), fill = TRUE)

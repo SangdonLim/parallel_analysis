@@ -14,6 +14,7 @@ get_package("DA.MRFA", "1.1.2")
 library(mnormt)
 library(psych)
 library(DA.MRFA)
+library(optimbase)
 library(RGenData)
 library(mvnfast)
 library(compiler)
@@ -36,8 +37,10 @@ message(sprintf(
 clusterExport(cl, c(
   "NNpatched", "VMpatched",
   "CDpatched", "GDpatched",
-  "mrfa", "rmvn", "FactorAnalysis", "polychoric")
-)
+  "MRFApatched", "MRFASpatched", "GLBpatched",
+  "rmvn", "FactorAnalysis", "polychoric",
+  "size", "transpose", "nrm"
+))
 
 # Initialize task list
 conditions <- get_conditions_matrix()
@@ -165,7 +168,7 @@ results <- foreach(
   # sample: get MRFA-reduced correlations
   ok <- FALSE
   while (!ok) {
-    X_rm <- try(mrfa(X_rf, dimensionality = n_items - 1, display = FALSE)$Matrix)
+    X_rm <- try(MRFApatched(X_rf, dimensionality = n_items - 1, display = FALSE)$Matrix)
     ok <- !inherits(X_rm, "try-error")
   }
 
@@ -222,7 +225,7 @@ results <- foreach(
     ok <- FALSE
     while (!ok) {
       PA_rm[[i]] <- try(
-        mrfa(PA_rf[[i]], dimensionality = n_items - 1, display = FALSE)$Matrix
+        MRFApatched(PA_rf[[i]], dimensionality = n_items - 1, display = FALSE)$Matrix
       )
       ok <- !inherits(PA_rm[[i]], "try-error")
     }
