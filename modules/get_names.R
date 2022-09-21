@@ -35,7 +35,6 @@ get_DV_names <- function() {
     "T_mm", "T_mu", "T_pm", "T_pu",
     "R_fm", "R_fu", "R_rm", "R_ru",
     "CD",
-    "ekc0", "ekc1",
     "f_halt", "r_halt",
     "n_items",
     "n_try",
@@ -112,8 +111,6 @@ get_DV_full_names <- function(vec_names) {
   vec_names[which(vec_names == "R_rm")] <- "RPA-PAF-m"
   vec_names[which(vec_names == "R_ru")] <- "RPA-PAF-95"
   vec_names[which(vec_names == "CD")]   <- "CD"
-  vec_names[which(vec_names == "ekc0")] <- "EKC-0"
-  vec_names[which(vec_names == "ekc1")] <- "EKC-1"
 
   return(vec_names)
 
