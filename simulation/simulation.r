@@ -86,11 +86,23 @@ results <- foreach(
     if (d_skew == 2) d_kurt <- 6
 
     n_try <- 0
-    ok <- FALSE
-    while (!ok) {
+    while (TRUE) {
+
       n_try <- n_try + 1
       X_float <- try(simulate_sample(n_obs, n_factor, r_factor, w_lambda, w_error, d_skew, d_kurt))
-      ok <- !inherits(X_float, "try-error")
+      ok <- is_valid(X_float)
+      if (!ok) next
+
+      n_items <- dim(X_float)[2]
+
+      # make sure we can compute MRFA later
+      tmp <- cor(X_float)
+      tmp <- try(MRFApatched(tmp, dimensionality = n_items - 1, display = FALSE)$Matrix)
+      ok <- is_valid(tmp)
+      if (!ok) next
+
+      break
+
     }
 
   }
@@ -107,19 +119,35 @@ results <- foreach(
     if (n_cats == 4 & d_skew == 2) tau <- c(-Inf, 0.7515, 1.1341, 1.5980, Inf)
 
     n_try <- 0
-    ok <- FALSE
-    while (!ok) {
+    while (TRUE) {
+
       n_try <- n_try + 1
       X_float <- try(simulate_sample(n_obs, n_factor, r_factor, w_lambda, w_error, 0, 0))
-      ok <- !inherits(X_float, "try-error")
+      ok <- is_valid(X_float)
+      if (!ok) next
+
+      tau_mat <- matrix(tau, dim(X_float)[2], length(tau), byrow = TRUE)
+      tau_mat[seq(2, dim(X_float)[2], 2), ] <-
+      -tau_mat[seq(2, dim(X_float)[2], 2), ]
+
+      X_int <- X_float * 0
+      X_int <- tau_mesh(X_float, tau_mat)
+
+      n_items <- dim(X_float)[2]
+
+      # make sure we can compute polychoric later
+      tmp <- try(polychoric(X_int, smooth = TRUE)[[1]])
+      ok <- is_matrix_valid(tmp, n_items)
+      if (!ok) next
+
+      # make sure we can compute MRFA later
+      tmp <- try(MRFApatched(tmp, dimensionality = n_items - 1, display = FALSE)$Matrix)
+      ok <- is_valid(tmp)
+      if (!ok) next
+
+      break
+
     }
-
-    tau_mat <- matrix(tau, dim(X_float)[2], length(tau), byrow = TRUE)
-    tau_mat[seq(2, dim(X_float)[2], 2), ] <-
-    -tau_mat[seq(2, dim(X_float)[2], 2), ]
-
-    X_int <- X_float * 0
-    X_int <- tau_mesh(X_float, tau_mat)
 
   }
 
@@ -166,10 +194,14 @@ results <- foreach(
   X_rr <- reduce_pafa_smc(X_rf)
 
   # sample: get MRFA-reduced correlations
-  ok <- FALSE
-  while (!ok) {
+  while (TRUE) {
+
     X_rm <- try(MRFApatched(X_rf, dimensionality = n_items - 1, display = FALSE)$Matrix)
-    ok <- !inherits(X_rm, "try-error")
+    ok <- is_valid(X_rm)
+    if (!ok) next
+
+    break
+
   }
 
   # sample: get eigenvalues
@@ -185,49 +217,44 @@ results <- foreach(
   # Perform PA
   # ----------------------------------------------------------------------------
 
-  set.seed((rng_seed * 234567 + idx_trial) %% (2 ** 31))
-
   PA_float <-
   PA_int   <-
   PA_rf    <-
   PA_rr    <-
   PA_rm    <- vector("list", PA_loops)
 
-  # PA: make internal datasets
   for (i in 1:PA_loops) {
-    PA_float[[i]] <- rmvn(n_obs, rep(0, n_items), diag(1, n_items))
-  }
 
-  # PA: get internal Pearson correlations
-  if (n_cats == 0) {
-    PA_rf <- lapply(PA_float, cor)
-  }
+    set.seed((rng_seed * 234567 + idx_trial + i * 111) %% (2 ** 31))
 
-  # PA: get internal polychoric correlations
-  if (n_cats > 0) {
-    for (i in 1:PA_loops) {
-      PA_int[[i]] <- tau_mesh(PA_float[[i]], X_tau)
-      PA_rf[[i]]  <- polychoric(PA_int[[i]], smooth = TRUE)[[1]]
-      # Regenerate PA internal random data, if some variables have zero variance
-      while (dim(PA_rf[[i]])[1] != n_items) {
-        PA_float[[i]] <- rmvn(n_obs, rep(0, n_items), diag(1, n_items))
-        PA_int[[i]] <- tau_mesh(PA_float[[i]], X_tau)
-        PA_rf[[i]]  <- polychoric(PA_int[[i]], smooth = TRUE)[[1]]
+    while (TRUE) {
+
+      # PA: make internal datasets
+      PA_float[[i]] <- rmvn(n_obs, rep(0, n_items), diag(1, n_items))
+
+      # PA: get internal Pearson correlations
+      if (n_cats == 0) {
+        PA_rf[[i]] <- cor(PA_float[[i]])
       }
-    }
-  }
 
-  # PA: get SMC-reduced internal correlations
-  PA_rr <- lapply(PA_rf, reduce_pafa_smc)
+      # PA: get internal polychoric correlations
+      if (n_cats > 0) {
+        PA_int[[i]] <- tau_mesh(PA_float[[i]], X_tau)
+        PA_rf[[i]]  <- try(polychoric(PA_int[[i]], smooth = TRUE)[[1]])
+        ok <- is_matrix_valid(PA_rf[[i]], n_items)
+        if (!ok) next
+      }
 
-  # PA: get MRFA-reduced internal correlations
-  for (i in 1:PA_loops) {
-    ok <- FALSE
-    while (!ok) {
-      PA_rm[[i]] <- try(
-        MRFApatched(PA_rf[[i]], dimensionality = n_items - 1, display = FALSE)$Matrix
-      )
-      ok <- !inherits(PA_rm[[i]], "try-error")
+      # PA: get SMC-reduced internal correlations
+      PA_rr[[i]] <- reduce_pafa_smc(PA_rf[[i]])
+
+      # PA: get MRFA-reduced internal correlations
+      PA_rm[[i]] <- try(MRFApatched(PA_rf[[i]], dimensionality = n_items - 1, display = FALSE)$Matrix)
+      ok <- is_valid(PA_rm[[i]])
+      if (!ok) next
+
+      break
+
     }
   }
 
@@ -261,8 +288,6 @@ results <- foreach(
   # Perform RPA
   # ----------------------------------------------------------------------------
 
-  set.seed((rng_seed * 345678 + idx_trial) %% (2 ** 31))
-
   flags <- rep(FALSE, 4)
   max_n_factors <- get_max_n_factors(n_items)
 
@@ -282,13 +307,16 @@ results <- foreach(
 
     if (k > 0) {
 
+      set.seed((rng_seed * 345678 + idx_trial) %% (2 ** 31))
+
       # Perform k-factor EFA and get factor loadings
       ok <- FALSE
       n_starts <- 1 # number of starting points in EFA
       while (!ok) {
         # this has a random component
         RPA_weights <- try(factanal(
-          covmat = X_rf, n_obs = n_obs, factors = k, rotation = "none", nstart = n_starts)$loadings[])
+          covmat = X_rf, n_obs = n_obs, factors = k, rotation = "none", nstart = n_starts
+        )$loadings[])
         if (class(RPA_weights)[1] == "try-error") n_starts <- n_starts * 2
         if (class(RPA_weights)[1] == "matrix")    ok <- TRUE
         if (n_starts > 1024) break
@@ -300,31 +328,35 @@ results <- foreach(
       RPA_pop_rf <- RPA_weights %*% t(RPA_weights)
       diag(RPA_pop_rf) <- 1
 
-      # RPA: make internal datasets
       for (i in 1:PA_loops) {
-        RPA_float[[i]] <- rmvn(n_obs, rep(0, n_items), RPA_pop_rf)
-      }
 
-      # RPA: get internal Pearson correlations
-      if (n_cats == 0) {
-        RPA_rf <- lapply(RPA_float, cor)
-      }
+        set.seed((rng_seed * 345678 + idx_trial + i * 111) %% (2 ** 31))
 
-      # RPA: get internal polychoric correlations
-      if (n_cats >  0) {
-        for (i in 1:PA_loops) {
-          RPA_int[[i]] <- tau_mesh(RPA_float[[i]], X_tau)
-          RPA_rf[[i]]  <- polychoric(RPA_int[[i]], smooth = TRUE)[[1]]
-          while(dim(RPA_rf[[i]])[1] != n_items) {
-            RPA_float[[i]] <- rmvn(n_obs, rep(0, n_items), RPA_pop_rf)
-            RPA_int[[i]]   <- tau_mesh(RPA_float[[i]], X_tau)
-            RPA_rf[[i]]    <- polychoric(RPA_int[[i]], smooth = TRUE)[[1]]
+        while (TRUE) {
+
+          # RPA: make internal datasets
+          RPA_float[[i]] <- rmvn(n_obs, rep(0, n_items), RPA_pop_rf)
+
+          # RPA: get internal Pearson correlations
+          if (n_cats == 0) {
+            RPA_rf[[i]] <- cor(RPA_float[[i]])
           }
+
+          # RPA: get internal polychoric correlations
+          if (n_cats >  0) {
+            RPA_int[[i]] <- tau_mesh(RPA_float[[i]], X_tau)
+            RPA_rf[[i]]  <- try(polychoric(RPA_int[[i]], smooth = TRUE)[[1]])
+            ok <- is_matrix_valid(RPA_rf[[i]], n_items)
+            if (!ok) next
+          }
+
+          # RPA: get SMC-reduced internal correlations
+          RPA_rr[[i]] <- reduce_pafa_smc(RPA_rf[[i]])
+
+          break
+
         }
       }
-
-      # RPA: get SMC-reduced internal correlations
-      RPA_rr <- lapply(RPA_rf, reduce_pafa_smc)
 
     }
 

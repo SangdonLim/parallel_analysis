@@ -161,3 +161,37 @@ do_normal_rounding <- function(x, digits) {
   x <- round(x, digits)
   return(x)
 }
+
+#' validate whether input is a valid matrix
+#'
+#' @param x the input
+#' @param n_items the expected number of items
+#'
+#' @export
+is_matrix_valid <- function(x, n_items) {
+
+  if (inherits(x, "try-error")) {
+    return(FALSE)
+  }
+  if (dim(x)[1] != n_items) {
+    return(FALSE)
+  }
+
+  return(TRUE)
+
+}
+
+#' validate whether input is a non-error object
+#'
+#' @param x the input
+#'
+#' @export
+is_valid <- function(x) {
+
+  if (inherits(x, "try-error")) {
+    return(FALSE)
+  }
+
+  return(TRUE)
+
+}
