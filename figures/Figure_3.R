@@ -41,7 +41,10 @@ for (img_type in c("eps", "emf", "svg")) {
 
   setEPS()
   if (img_type == "eps") {
-    postscript("figures/Figure_3.eps", width = 6.8, height = 4.5)
+    postscript(
+      "figures/Figure_3.eps", width = 6.8, height = 4.5,
+      encoding = "ISOLatin1"
+    )
   }
   if (img_type == "emf") {
     emf(
